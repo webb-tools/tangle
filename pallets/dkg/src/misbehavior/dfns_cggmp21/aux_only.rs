@@ -236,3 +236,13 @@ pub fn invalid_mod_proof<T: Config>(
 	// TODO: add slashing logic
 	Ok(())
 }
+
+pub fn invalid_fac_proof<T: Config>(
+	_data: &MisbehaviorSubmission,
+	_parties_including_offender: &[[u8; 33]],
+	_reason: &InvalidProofReason,
+	_round2: &[SignedRoundMessage],
+	_round3: &SignedRoundMessage,
+) -> DispatchResult {
+	Err(Error::<T>::InvalidJustification.into())
+}

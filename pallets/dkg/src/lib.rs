@@ -179,6 +179,12 @@ pub mod pallet {
 		/// This error is returned when the Mod Proof is valid
 		/// but the caller claims it is invalid.
 		ValidModProof,
+
+		/// The submitted Fac Proof is valid.
+		///
+		/// This error is returned when the Fac Proof is valid
+		/// but the caller claims it is invalid.
+		ValidFacProof,
 	}
 
 	#[pallet::call]
