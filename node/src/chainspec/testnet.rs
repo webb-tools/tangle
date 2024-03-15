@@ -120,6 +120,11 @@ pub fn local_testnet_config(chain_id: u64) -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Charlie"), ENDOWMENT),
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), ENDOWMENT),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), ENDOWMENT),
+					(
+						hex!["fe62c6474ce99b365229a1acad7dfdc9d9394dc5c9f8d98ee21b4983d95cc739"] //subkey inspect //OnlyVesting
+							.into(),
+						ENDOWMENT,
+					),
 				],
 				chain_id,
 				Default::default(),

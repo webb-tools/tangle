@@ -493,7 +493,7 @@ impl pallet_staking::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = LAUNCH_PERIOD;
+	pub const LaunchPeriod: BlockNumber = 5;
 	pub const VotingPeriod: BlockNumber = VOTING_PERIOD;
 	pub const FastTrackVotingPeriod: BlockNumber = FASTTRACK_VOTING_PERIOD;
 	pub const MinimumDeposit: Balance = MINIMUM_DEPOSIT;
