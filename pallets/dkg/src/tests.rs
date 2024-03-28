@@ -17,11 +17,12 @@
 use crate::mock::*;
 
 use frame_support::{assert_noop, assert_ok};
-use generic_ec::coords::{Coordinate, HasAffineXAndParity, Parity};
-use generic_ec::curves::Stark;
-use generic_ec::Point;
-use p256::ecdsa::signature::hazmat::PrehashSigner;
-use p256::ecdsa::{SigningKey, VerifyingKey};
+use generic_ec::{
+	coords::{Coordinate, HasAffineXAndParity, Parity},
+	curves::Stark,
+	Point,
+};
+use p256::ecdsa::{signature::hazmat::PrehashSigner, SigningKey, VerifyingKey};
 use pallet_dkg::{types::FeeInfo, Error, Event, FeeInfo as FeeInfoStorage};
 use parity_scale_codec::Encode;
 use rand_core::OsRng;
@@ -84,6 +85,7 @@ fn dkg_key_verification_works_for_bls() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::Bls381,
 			key: vec![].try_into().unwrap(),
+			chain_code: None,
 			participants: vec![].try_into().unwrap(),
 			signatures: vec![].try_into().unwrap(),
 			threshold: 2,
@@ -98,6 +100,7 @@ fn dkg_key_verification_works_for_bls() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::Bls381,
 			key: vec![].try_into().unwrap(),
+			chain_code: None,
 			participants: vec![mock_pub_key_secp256k1_ecdsa()
 				.as_mut()
 				.to_vec()
@@ -121,6 +124,7 @@ fn dkg_key_verification_works_for_bls() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::Bls381,
 			key: vec![].try_into().unwrap(),
+			chain_code: None,
 			participants: vec![mock_pub_key_secp256k1_ecdsa()
 				.as_mut()
 				.to_vec()
@@ -141,6 +145,7 @@ fn dkg_key_verification_works_for_bls() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::Bls381,
 			key: pub_key.0.to_vec().try_into().unwrap(),
+			chain_code: None,
 			participants: vec![pub_key.as_mut().to_vec().try_into().unwrap()].try_into().unwrap(),
 			signatures: vec![
 				signature.clone().try_into().unwrap(),
@@ -165,6 +170,7 @@ fn dkg_key_verification_works_for_bls() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::Bls381,
 			key: participant_one.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 			participants: vec![
 				participant_one.as_mut().to_vec().try_into().unwrap(),
 				participant_two.as_mut().to_vec().try_into().unwrap(),
@@ -187,6 +193,7 @@ fn dkg_key_verification_works_for_ecdsa() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
 			key: vec![].try_into().unwrap(),
+			chain_code: None,
 			participants: vec![].try_into().unwrap(),
 			signatures: vec![].try_into().unwrap(),
 			threshold: 2,
@@ -201,6 +208,7 @@ fn dkg_key_verification_works_for_ecdsa() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
 			key: vec![].try_into().unwrap(),
+			chain_code: None,
 			participants: vec![mock_pub_key_secp256k1_ecdsa()
 				.as_mut()
 				.to_vec()
@@ -224,6 +232,7 @@ fn dkg_key_verification_works_for_ecdsa() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
 			key: vec![].try_into().unwrap(),
+			chain_code: None,
 			participants: vec![mock_pub_key_secp256k1_ecdsa()
 				.as_mut()
 				.to_vec()
@@ -244,6 +253,7 @@ fn dkg_key_verification_works_for_ecdsa() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
 			key: pub_key.0.to_vec().try_into().unwrap(),
+			chain_code: None,
 			participants: vec![pub_key.as_mut().to_vec().try_into().unwrap()].try_into().unwrap(),
 			signatures: vec![
 				signature.clone().try_into().unwrap(),
@@ -268,6 +278,7 @@ fn dkg_key_verification_works_for_ecdsa() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
 			key: participant_one.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 			participants: vec![
 				participant_one.as_mut().to_vec().try_into().unwrap(),
 				participant_two.as_mut().to_vec().try_into().unwrap(),
@@ -294,6 +305,7 @@ fn dkg_key_verifcation_works_for_ecdsa_when_n_equals_t() {
 		let job_to_verify = DKGTSSKeySubmissionResult {
 			signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
 			key: participant_one.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 			participants: vec![
 				participant_one.as_mut().to_vec().try_into().unwrap(),
 				participant_two.as_mut().to_vec().try_into().unwrap(),
@@ -338,6 +350,7 @@ fn signature_verification_works_bls() {
 			signature: signature.as_bytes().to_vec().try_into().unwrap(),
 			verifying_key: pub_key.as_bytes().to_vec().try_into().unwrap(),
 			data: BLS_DATA_TO_SIGN.to_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// Should fail for an invalid public key
@@ -357,6 +370,7 @@ fn signature_verification_works_bls() {
 			signature: signature.as_bytes()[..10].to_vec().try_into().unwrap(),
 			data: BLS_DATA_TO_SIGN.to_vec().try_into().unwrap(),
 			verifying_key: pub_key.as_uncompressed_bytes().to_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// Should fail for an invalid signature
@@ -376,6 +390,7 @@ fn signature_verification_works_bls() {
 			signature: signature.as_bytes().to_vec().try_into().unwrap(),
 			verifying_key: pub_key.as_uncompressed_bytes().to_vec().try_into().unwrap(),
 			data: BLS_DATA_TO_SIGN.to_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		assert_ok!(DKG::verify(JobResult::DKGPhaseTwo(job_to_verify)));
@@ -399,6 +414,7 @@ fn signature_verification_works_secp256k1_ecdsa() {
 			signature: signature.try_into().unwrap(),
 			data: pub_key.to_raw_vec().try_into().unwrap(),
 			verifying_key: pub_key.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// should fail for invalid keys
@@ -419,6 +435,7 @@ fn signature_verification_works_secp256k1_ecdsa() {
 			signature: signature.try_into().unwrap(),
 			data: pub_key.to_raw_vec().try_into().unwrap(),
 			verifying_key: pub_key.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// should work with correct params
@@ -443,6 +460,7 @@ fn signature_verification_works_sr25519_schnorr() {
 			signature: signature.try_into().unwrap(),
 			data: pub_key.to_raw_vec().try_into().unwrap(),
 			verifying_key: pub_key.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// should fail for invalid keys
@@ -458,6 +476,7 @@ fn signature_verification_works_sr25519_schnorr() {
 			signature: signature.try_into().unwrap(),
 			data: pub_key.to_raw_vec().try_into().unwrap(),
 			verifying_key: pub_key.to_raw_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// should work with correct params
@@ -481,6 +500,7 @@ fn signature_verification_works_secp256r1_ecdsa() {
 			signature: signature.to_vec().try_into().unwrap(),
 			data: message.to_vec().try_into().unwrap(),
 			verifying_key: public_key.to_sec1_bytes().to_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// should work with correct params
@@ -530,6 +550,7 @@ fn signature_verification_works_stark_ecdsa() {
 			signature: encoded_signature.to_vec().try_into().unwrap(),
 			data: message.to_bytes_be().to_vec().try_into().unwrap(),
 			verifying_key: public_key_point.to_bytes(true).to_vec().try_into().unwrap(),
+			chain_code: None,
 		};
 
 		// should work with correct params
@@ -553,6 +574,7 @@ fn dkg_key_rotation_works() {
 			new_key: new_key.to_raw_vec().try_into().unwrap(),
 			phase_one_id: 1,
 			new_phase_one_id: 2,
+			chain_code: None,
 		};
 
 		// should fail for invalid keys
@@ -571,6 +593,7 @@ fn dkg_key_rotation_works() {
 			new_key: new_key.to_raw_vec().try_into().unwrap(),
 			phase_one_id: 1,
 			new_phase_one_id: 2,
+			chain_code: None,
 		};
 		// should work with correct params
 		assert_ok!(DKG::verify(JobResult::DKGPhaseFour(job_to_verify)));

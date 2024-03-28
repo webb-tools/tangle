@@ -14,21 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 use crate::{signatures_schemes::to_slice_33, Config, Error};
+use core::str::FromStr;
+use derivation_path::DerivationPath;
 use ecdsa_core::signature::hazmat::PrehashVerifier;
-use elliptic_curve::consts::U32;
 use frame_support::{ensure, pallet_prelude::DispatchResult};
-use generic_array::GenericArray;
-use generic_ec::coords::HasAffineX;
-use generic_ec::{curves::Stark, Point, Scalar};
+use generic_ec::{
+	coords::HasAffineX,
+	curves::{Secp256k1, Stark},
+	Point, Scalar,
+};
 use sp_core::ecdsa;
 use sp_io::{hashing::keccak_256, EcdsaVerifyError};
+use sp_runtime::BoundedVec;
 use sp_std::vec::Vec;
 use tangle_primitives::jobs::DKGTSSKeySubmissionResult;
 
 pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 
-/// Verifies the Secp256k1 DKG signature result by recovering the ECDSA public key from the provided data
-/// and signature.
+/// Verifies the Secp256k1 DKG signature result by recovering the ECDSA public key from the provided
+/// data and signature.
 ///
 /// This function checks whether the recovered public key matches the expected signing key,
 /// ensuring the validity of the signature.
@@ -38,37 +42,67 @@ pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 /// * `data` - The DKG signature result containing the message data and ECDSA signature.
 /// * `signature` - The ECDSA signature to be verified.
 /// * `expected_key` - The expected ECDSA public key.
+/// * `derivation_path` - The derivation path used to derive the public key.
+/// * `chain_code` - The chain code used to derive the public key.
 pub fn verify_secp256k1_ecdsa_signature<T: Config>(
 	msg: &[u8],
 	signature: &[u8],
 	expected_key: &[u8],
+	derivation_path: &Option<BoundedVec<u8, T::MaxAdditionalParamsLen>>,
+	chain_code: Option<[u8; 32]>,
 ) -> DispatchResult {
-	let verifying_key = k256::ecdsa::VerifyingKey::from_sec1_bytes(expected_key)
+	use k256::elliptic_curve::group::GroupEncoding;
+	// generic_ec::NonZero::from_point(
+	// 	shares[0]
+	// 		.derive_child_public_key(path.iter().cloned())
+	// 		.unwrap()
+	// 		.public_key,
+	// )
+	// .unwrap()
+	let maybe_affine_point = k256::AffinePoint::from_bytes(expected_key.into());
+	if maybe_affine_point.is_none().into() {
+		Err(Error::<T>::InvalidPublicKey)?;
+	}
+
+	let pub_key = match derivation_path.as_ref().zip(chain_code) {
+		Some((path, chain_code)) => {
+			let point: Point<Secp256k1> =
+				Point::from_bytes(expected_key).map_err(|_| Error::<T>::InvalidPublicKey)?;
+			let epub = slip_10::ExtendedPublicKey { public_key: point, chain_code };
+			// Deserialize the derivation path as an ascii string
+			let derivation_path_str =
+				String::from_utf8(path.to_vec()).unwrap_or_else(|_| String::from("m"));
+			let path = DerivationPath::from_str(&derivation_path_str).unwrap();
+			slip_10::try_derive_child_public_key_with_path(
+				&epub,
+				path.into_iter().map(|index| index.to_u32().try_into()),
+			)
+			.map_err(|_| Error::<T>::InvalidPublicKey)?
+			.public_key
+			.to_bytes(true)
+			.to_vec()
+		},
+		None => expected_key.to_vec(),
+	};
+
+	let pub_key_point = k256::AffinePoint::from_bytes(pub_key.as_slice().into());
+	if pub_key_point.is_none().into() {
+		Err(Error::<T>::InvalidPublicKey)?;
+	}
+	let verifying_key = k256::ecdsa::VerifyingKey::from_affine(pub_key_point.unwrap())
 		.map_err(|_| Error::<T>::InvalidPublicKey)?;
-	ensure!(signature.len() == ECDSA_SIGNATURE_LENGTH, Error::<T>::InvalidSignature);
+	let signature =
+		k256::ecdsa::Signature::from_slice(signature).map_err(|_| Error::<T>::InvalidSignature)?;
 
-	// Normalize the signature
-	// https://github.com/RustCrypto/elliptic-curves/issues/988
-	let mut r_bytes = [0u8; 32];
-	let mut s_bytes = [0u8; 32];
-	r_bytes.copy_from_slice(&signature[0..32]);
-	s_bytes.copy_from_slice(&signature[32..64]);
-	let gar: &GenericArray<u8, U32> = GenericArray::from_slice(&r_bytes);
-	let gas: &GenericArray<u8, U32> = GenericArray::from_slice(&s_bytes);
-	let signature = k256::ecdsa::Signature::from_scalars(*gar, *gas)
-		.map_err(|_| Error::<T>::InvalidSignature)?;
-	let normalized_signature = signature.normalize_s().unwrap_or(signature);
-
-	let hash = keccak_256(msg);
 	ensure!(
-		verifying_key.verify_prehash(&hash, &normalized_signature).is_ok(),
+		verifying_key.verify_prehash(msg, &signature).map(|_| signature).is_ok(),
 		Error::<T>::InvalidSignature
 	);
 	Ok(())
 }
 
-/// Verify the Secp256r1 DKG signature result by recovering the ECDSA public key from the provided data
-/// and signature.
+/// Verify the Secp256r1 DKG signature result by recovering the ECDSA public key from the provided
+/// data and signature.
 ///
 /// This function checks whether the recovered public key matches the expected signing key,
 /// ensuring the validity of the signature.
@@ -82,32 +116,27 @@ pub fn verify_secp256r1_ecdsa_signature<T: Config>(
 	msg: &[u8],
 	signature: &[u8],
 	expected_key: &[u8],
+	derivation_path: &Option<BoundedVec<u8, T::MaxAdditionalParamsLen>>,
 ) -> DispatchResult {
-	let verifying_key = p256::ecdsa::VerifyingKey::from_sec1_bytes(expected_key)
+	use p256::elliptic_curve::group::GroupEncoding;
+	let maybe_affine_point = p256::AffinePoint::from_bytes(expected_key.into());
+	if maybe_affine_point.is_none().into() {
+		Err(Error::<T>::InvalidPublicKey)?;
+	}
+	let verifying_key = p256::ecdsa::VerifyingKey::from_affine(maybe_affine_point.unwrap())
 		.map_err(|_| Error::<T>::InvalidPublicKey)?;
-
-	// Normalize the signature
-	// https://github.com/RustCrypto/elliptic-curves/issues/988
-	let mut r_bytes = [0u8; 32];
-	let mut s_bytes = [0u8; 32];
-	r_bytes.copy_from_slice(&signature[0..32]);
-	s_bytes.copy_from_slice(&signature[32..64]);
-	let gar: &GenericArray<u8, U32> = GenericArray::from_slice(&r_bytes);
-	let gas: &GenericArray<u8, U32> = GenericArray::from_slice(&s_bytes);
-	let signature = p256::ecdsa::Signature::from_scalars(*gar, *gas)
-		.map_err(|_| Error::<T>::InvalidSignature)?;
-	let normalized_signature = signature.normalize_s().unwrap_or(signature);
-	let hash = keccak_256(msg);
+	let signature =
+		p256::ecdsa::Signature::from_slice(&signature).map_err(|_| Error::<T>::InvalidSignature)?;
 
 	ensure!(
-		verifying_key.verify_prehash(&hash, &normalized_signature).is_ok(),
+		verifying_key.verify_prehash(msg, &signature).map(|_| signature).is_ok(),
 		Error::<T>::InvalidSignature
 	);
 	Ok(())
 }
 
-/// Verifies the Stark curve DKG signature result by recovering the ECDSA public key from the provided data
-/// and signature.
+/// Verifies the Stark curve DKG signature result by recovering the ECDSA public key from the
+/// provided data and signature.
 ///
 /// This function checks whether the recovered public key matches the expected signing key,
 /// ensuring the validity of the signature.
@@ -121,6 +150,7 @@ pub fn verify_stark_ecdsa_signature<T: Config>(
 	msg: &[u8],
 	signature: &[u8],
 	expected_key: &[u8],
+	derivation_path: &Option<BoundedVec<u8, T::MaxAdditionalParamsLen>>,
 ) -> DispatchResult {
 	// The message should be pre-hashed uisng a 32-byte digest
 	if msg.len() != 32 {
