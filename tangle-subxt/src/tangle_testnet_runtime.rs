@@ -47912,6 +47912,7 @@ pub mod api {
 						# [codec (crate = :: subxt :: ext :: codec)]
 						#[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
 						#[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+						#[codec(dumb_trait_bound)]
 						pub enum Field<_1> {
 							#[codec(index = 0)]
 							None,
@@ -47946,13 +47947,13 @@ pub mod api {
 							#[codec(index = 12)]
 							Array(
 								runtime_types::bounded_collections::bounded_vec::BoundedVec<
-									Field<_1>,
+									runtime_types::tangle_primitives::jobs::v2::field::Field<_1>,
 								>,
 							),
 							#[codec(index = 13)]
 							List(
 								runtime_types::bounded_collections::bounded_vec::BoundedVec<
-									Field<_1>,
+									runtime_types::tangle_primitives::jobs::v2::field::Field<_1>,
 								>,
 							),
 							#[codec(index = 100)]
