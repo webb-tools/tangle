@@ -300,7 +300,6 @@ std = [
     "pallet-evm-precompile-verify-schnorr-signatures/std",
     "pallet-evm-precompile-verify-bls381-signature/std",
 
-
     # Sygma
     "sygma-basic-feehandler/std",
     "sygma-traits/std",
