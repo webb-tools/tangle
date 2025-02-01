@@ -392,11 +392,9 @@ impl From<TestAccount> for sp_core::sr25519::Public {
 pub type AssetId = u32;
 
 pub struct MockDelegationManager;
-impl tangle_primitives::traits::MultiAssetDelegationInfo<AccountId, Balance, u64>
+impl tangle_primitives::traits::MultiAssetDelegationInfo<AccountId, Balance, u64, AssetId>
 	for MockDelegationManager
 {
-	type AssetId = AssetId;
-
 	fn get_current_round() -> tangle_primitives::types::RoundIndex {
 		Default::default()
 	}
@@ -419,29 +417,30 @@ impl tangle_primitives::traits::MultiAssetDelegationInfo<AccountId, Balance, u64
 
 	fn get_total_delegation_by_asset_id(
 		_operator: &AccountId,
-		_asset_id: &Asset<Self::AssetId>,
+		_asset_id: &Asset<AssetId>,
 	) -> Balance {
 		Default::default()
 	}
 
 	fn get_delegators_for_operator(
 		_operator: &AccountId,
-	) -> Vec<(AccountId, Balance, Asset<Self::AssetId>)> {
+	) -> Vec<(AccountId, Balance, Asset<AssetId>)> {
 		Default::default()
-	}
-
-	fn slash_operator(
-		_operator: &AccountId,
-		_blueprint_id: tangle_primitives::BlueprintId,
-		_percentage: sp_runtime::Percent,
-	) {
 	}
 
 	fn get_user_deposit_with_locks(
 		_who: &AccountId,
-		_asset_id: Asset<Self::AssetId>,
+		_asset_id: Asset<AssetId>,
 	) -> Option<UserDepositWithLocks<Balance, u64>> {
 		None
+	}
+
+	fn has_delegator_selected_blueprint(
+		_delegator: &AccountId,
+		_operator: &AccountId,
+		_blueprint_id: tangle_primitives::BlueprintId,
+	) -> bool {
+		true
 	}
 }
 
@@ -533,6 +532,10 @@ parameter_types! {
 	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub const SlashDeferDuration: u32 = 7;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const NativeExposureMinimum: Percent = Percent::from_percent(10);
 }
 
 impl pallet_services::Config for Runtime {
@@ -566,6 +569,7 @@ impl pallet_services::Config for Runtime {
 	type MaxContainerImageTagLength = MaxContainerImageTagLength;
 	type MaxAssetsPerService = MaxAssetsPerService;
 	type MaxMasterBlueprintServiceManagerVersions = MaxMasterBlueprintServiceManagerRevisions;
+	type NativeExposureMinimum = NativeExposureMinimum;
 	type Constraints = pallet_services::types::ConstraintsOf<Self>;
 	type OperatorDelegationManager = MockDelegationManager;
 	type SlashDeferDuration = SlashDeferDuration;
@@ -747,7 +751,7 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<AccountId>) -> sp_io::TestE
 		<Staking as Hooks<u64>>::on_initialize(1);
 
 		let call = <Runtime as pallet_services::Config>::EvmRunner::call(
-			Services::address(),
+			Services::pallet_evm_account(),
 			USDC_ERC20,
 			serde_json::from_value::<ethabi::Function>(json!({
 				"name": "initialize",
@@ -788,7 +792,7 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<AccountId>) -> sp_io::TestE
 		// Mint
 		for a in authorities {
 			let call = <Runtime as pallet_services::Config>::EvmRunner::call(
-				Services::address(),
+				Services::pallet_evm_account(),
 				USDC_ERC20,
 				serde_json::from_value::<ethabi::Function>(json!({
 					"name": "mint",

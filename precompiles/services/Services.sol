@@ -23,9 +23,35 @@ interface Services {
     /// @param registration_args The registration arguments in SCALE-encoded format.
     function registerOperator(uint256 blueprint_id, bytes calldata preferences, bytes calldata registration_args) external payable;
 
+<<<<<<< HEAD
+	/// @notice Request a service from a specific blueprint
+	/// @param blueprint_id The ID of the blueprint
+	/// @param assets The list of assets to use for the service
+	/// @param permitted_callers_data The permitted callers for the service encoded as bytes
+	/// @param service_providers_data The service providers encoded as bytes
+	/// @param request_args_data The request arguments encoded as bytes
+	/// @param ttl The time-to-live of the service.
+	/// @param payment_asset_id The ID of the asset to use for payment (0 for native asset)
+	/// @param payment_token_address The address of the token to use for payment (0x0 for using the value of payment_asset_id)
+	/// @param payment_amount The amount to pay for the service (use msg.value if payment_asset_id is 0)
+	function requestService(
+		uint256 blueprint_id,
+		uint256[] calldata assets,
+		bytes calldata permitted_callers_data,
+		bytes calldata service_providers_data,
+		bytes calldata request_args_data,
+		uint256 ttl,
+		uint256 payment_asset_id,
+		address payment_token_address,
+		uint256 payment_amount,
+		uint32 min_operators,
+		uint32 max_operators
+	) external payable;
+=======
     /// @dev Pre-register as an operator for a specific blueprint.
     /// @param blueprint_id The blueprint ID.
     function preRegister(uint256 blueprint_id) external;
+>>>>>>> main
 
     /// @dev Unregister as an operator from a blueprint.
     /// @param blueprint_id The blueprint ID.
